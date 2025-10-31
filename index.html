@@ -1,0 +1,1718 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TuvaletimGeldi - En Yakın WC Bulucu</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <!-- Leaflet Routing Machine CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
+    
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <!-- Leaflet Routing Machine JS -->
+    <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+        }
+        
+        .hidden {
+            display: none !important;
+        }
+        
+        .leaflet-container {
+            height: 100%;
+            width: 100%;
+            z-index: 1 !important;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .toast {
+            animation: fadeIn 0.3s ease-out;
+        }
+        
+        .custom-marker {
+            background: transparent !important;
+            border: none !important;
+        }
+
+        .star-rating {
+            display: flex;
+            gap: 4px;
+        }
+
+        .star {
+            cursor: pointer;
+            font-size: 28px;
+            color: #d1d5db;
+            transition: color 0.2s;
+        }
+
+        .star.active {
+            color: #fbbf24;
+        }
+
+        .star:hover {
+            color: #fbbf24;
+        }
+
+        .modal-overlay {
+            z-index: 9999 !important;
+        }
+
+        .modal-content {
+            z-index: 10000 !important;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        @keyframes markerPulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+            }
+            70% {
+                box-shadow: 0 0 0 10px rgba(16, 185, 129, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+            }
+        }
+
+        .location-tracking {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+
+        .user-marker-pulse {
+            animation: markerPulse 2s infinite;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    
+    <!-- Toast Container -->
+    <div id="toast-container" class="fixed top-4 right-4 z-50 space-y-2"></div>
+
+    <!-- Login/Register Screen -->
+    <div id="auth-screen" class="min-h-screen bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8">
+            <div class="text-center mb-8">
+                <div class="inline-flex items-center justify-center w-16 h-16 bg-green-500 rounded-full mb-4">
+                    <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+                    </svg>
+                </div>
+                <h1 class="text-3xl font-bold text-gray-800">TuvaletimGeldi</h1>
+                <p class="text-gray-600 mt-2">En yakın WC'yi bul</p>
+            </div>
+
+            <!-- Tab Buttons -->
+            <div class="flex gap-2 mb-6">
+                <button id="login-tab" class="flex-1 py-2 rounded-lg font-semibold transition-all bg-green-500 text-white">
+                    Giriş Yap
+                </button>
+                <button id="register-tab" class="flex-1 py-2 rounded-lg font-semibold transition-all bg-gray-100 text-gray-600">
+                    Kayıt Ol
+                </button>
+            </div>
+
+            <!-- Login Form -->
+            <div id="login-form" class="space-y-4">
+                <div>
+                    <label class="text-sm font-medium text-gray-700 mb-1 block">E-posta</label>
+                    <input type="email" id="login-email" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none" placeholder="ornek@email.com">
+                </div>
+
+                <div>
+                    <label class="text-sm font-medium text-gray-700 mb-1 block">Şifre</label>
+                    <input type="password" id="login-password" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none" placeholder="••••••">
+                </div>
+
+                <button id="login-btn" class="w-full bg-green-500 text-white py-3 rounded-lg font-semibold hover:bg-green-600 transition-colors">
+                    Giriş Yap
+                </button>
+            </div>
+
+            <!-- Register Form -->
+            <div id="register-form" class="space-y-4 hidden">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-sm font-medium text-gray-700 mb-1 block">İsim</label>
+                        <input type="text" id="register-firstname" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="text-sm font-medium text-gray-700 mb-1 block">Soyisim</label>
+                        <input type="text" id="register-lastname" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="text-sm font-medium text-gray-700 mb-1 block">E-posta</label>
+                    <input type="email" id="register-email" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none">
+                </div>
+
+                <div>
+                    <label class="text-sm font-medium text-gray-700 mb-1 block">Telefon</label>
+                    <input type="tel" id="register-phone" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none" maxlength="11">
+                </div>
+
+                <div>
+                    <label class="text-sm font-medium text-gray-700 mb-1 block">Şifre</label>
+                    <input type="password" id="register-password" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none">
+                </div>
+
+                <div>
+                    <label class="text-sm font-medium text-gray-700 mb-1 block">Şifre Tekrar</label>
+                    <input type="password" id="register-confirm" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none">
+                </div>
+
+                <button id="register-btn" class="w-full bg-green-500 text-white py-3 rounded-lg font-semibold hover:bg-green-600 transition-colors">
+                    Kayıt Ol
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main App Screen -->
+    <div id="map-screen" class="hidden h-screen flex flex-col">
+        <!-- Header -->
+        <div class="bg-white shadow-md p-4 flex items-center justify-between z-10">
+            <div class="flex items-center gap-3 cursor-pointer" id="profile-header">
+                <div id="header-profile-image" class="w-12 h-12 rounded-full bg-gradient-to-br from-green-400 to-emerald-500 flex items-center justify-center text-white font-bold text-lg shadow-md">
+                    ?
+                </div>
+                <div>
+                    <div id="header-user-name" class="font-semibold text-gray-800">Kullanıcı</div>
+                    <div class="text-xs text-gray-500">Profili Görüntüle</div>
+                </div>
+            </div>
+            <button id="logout-btn" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors font-medium">
+                Çıkış
+            </button>
+        </div>
+
+        <!-- Map Container -->
+        <div id="map" class="flex-1 relative"></div>
+
+        <!-- Bottom Navigation -->
+        <div class="bg-white shadow-lg border-t border-gray-200 p-4">
+            <div class="flex items-center justify-around gap-3 max-w-xl mx-auto">
+                <!-- Location Button -->
+                <button id="location-btn" class="flex flex-col items-center justify-center gap-1 px-4 py-2 hover:bg-gray-100 rounded-lg transition-colors">
+                    <svg class="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+                    </svg>
+                    <span id="location-btn-text" class="text-xs font-medium text-gray-700">Konumum</span>
+                </button>
+
+                <!-- Add WC Button -->
+                <button id="add-wc-btn" class="flex flex-col items-center justify-center gap-1 px-6 py-3 bg-green-500 text-white rounded-xl hover:bg-green-600 transition-all shadow-lg transform hover:scale-105">
+                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                    </svg>
+                    <span class="text-xs font-bold">WC Ekle</span>
+                </button>
+
+                <!-- Search Button -->
+                <button id="search-btn" class="flex flex-col items-center justify-center gap-1 px-4 py-2 hover:bg-gray-100 rounded-lg transition-colors">
+                    <svg class="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                    </svg>
+                    <span class="text-xs font-medium text-gray-700">Ara</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Profile Edit Modal -->
+    <div id="profile-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 modal-overlay">
+        <div class="bg-white rounded-2xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto modal-content">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-2xl font-bold text-gray-800">Profilim</h2>
+                <button id="close-profile-modal" class="p-2 hover:bg-gray-100 rounded-full transition-colors">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+
+            <div class="space-y-4">
+                <!-- Profile Image -->
+                <div class="flex flex-col items-center mb-4">
+                    <div class="relative">
+                        <div id="profile-image-preview" class="w-24 h-24 rounded-full bg-gradient-to-br from-green-400 to-emerald-500 flex items-center justify-center overflow-hidden text-white font-bold text-3xl">
+                            ?
+                        </div>
+                        <label class="absolute bottom-0 right-0 bg-green-500 rounded-full p-2 cursor-pointer hover:bg-green-600 transition-colors shadow-lg">
+                            <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/>
+                            </svg>
+                            <input type="file" id="profile-image-input" accept="image/*" class="hidden">
+                        </label>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-sm font-medium text-gray-700 mb-1 block">İsim</label>
+                        <input type="text" id="edit-firstname" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="text-sm font-medium text-gray-700 mb-1 block">Soyisim</label>
+                        <input type="text" id="edit-lastname" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="text-sm font-medium text-gray-700 mb-1 block">E-posta</label>
+                    <input type="email" id="edit-email" class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-100" disabled>
+                </div>
+
+                <div>
+                    <label class="text-sm font-medium text-gray-700 mb-1 block">Telefon</label>
+                    <input type="tel" id="edit-phone" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none" maxlength="11">
+                </div>
+
+                <button id="save-profile-btn" class="w-full bg-green-500 text-white py-3 rounded-lg font-semibold hover:bg-green-600 transition-colors">
+                    Kaydet
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add WC Modal -->
+    <div id="add-wc-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 modal-overlay">
+        <div class="bg-white rounded-2xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto modal-content">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-2xl font-bold text-gray-800">WC Ekle</h2>
+                <button id="close-add-wc-modal" class="p-2 hover:bg-gray-100 rounded-full transition-colors">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+
+            <div class="space-y-4">
+                <!-- Photo Upload -->
+                <div>
+                    <label class="text-sm font-medium text-gray-700 mb-2 block">Fotoğraf Ekle</label>
+                    <div class="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center cursor-pointer hover:border-green-500 transition-colors" id="photo-upload-area">
+                        <input type="file" id="wc-photo-input" accept="image/*" class="hidden" multiple>
+                        <div id="photo-preview" class="grid grid-cols-3 gap-2 mb-2"></div>
+                        <svg class="w-12 h-12 text-gray-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/>
+                        </svg>
+                        <p class="text-sm text-gray-600">Fotoğraf yüklemek için tıklayın</p>
+                    </div>
+                </div>
+
+                <!-- WC Name -->
+                <div>
+                    <label class="text-sm font-medium text-gray-700 mb-1 block">Tesis Adı</label>
+                    <input type="text" id="wc-name-input" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none" placeholder="Örn: Taksim Cafe WC">
+                </div>
+
+                <!-- Location Input -->
+                <div>
+                    <label class="text-sm font-medium text-gray-700 mb-1 block">Konum</label>
+                    <div class="flex gap-2">
+                        <input type="text" id="wc-lat-input" class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none" placeholder="Enlem" readonly>
+                        <input type="text" id="wc-lng-input" class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none" placeholder="Boylam" readonly>
+                    </div>
+                    <button id="use-current-location-btn" class="mt-2 w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium">
+                        📍 Mevcut Konumu Kullan
+                    </button>
+                </div>
+
+                <!-- Description -->
+                <div>
+                    <label class="text-sm font-medium text-gray-700 mb-1 block">Açıklama</label>
+                    <textarea id="wc-description-input" rows="3" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none resize-none" placeholder="Tuvalet hakkında bilgi..."></textarea>
+                </div>
+
+                <button id="submit-wc-btn" class="w-full bg-green-500 text-white py-3 rounded-lg font-semibold hover:bg-green-600 transition-colors">
+                    WC Ekle
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search Modal -->
+    <div id="search-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 modal-overlay">
+        <div class="bg-white rounded-2xl w-full max-w-md max-h-[80vh] flex flex-col modal-content">
+            <div class="p-6 border-b">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-2xl font-bold text-gray-800">Tuvalet Ara</h2>
+                    <button id="close-search-modal" class="p-2 hover:bg-gray-100 rounded-full transition-colors">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>
+                
+                <!-- Search Input -->
+                <div class="relative">
+                    <input type="text" id="search-input" class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none" placeholder="Tesis adı ara...">
+                    <svg class="w-5 h-5 text-gray-400 absolute left-3 top-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                    </svg>
+                </div>
+            </div>
+
+            <!-- Search Results -->
+            <div id="search-results" class="flex-1 overflow-y-auto p-6 space-y-3">
+                <div class="text-center text-gray-500 py-8">
+                    Aramak için yukarıdaki kutucuğa yazın...
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Review Modal -->
+    <div id="review-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 modal-overlay">
+        <div class="bg-white rounded-2xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto modal-content">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-2xl font-bold text-gray-800">Yorum Yap</h2>
+                <button id="close-review-modal" class="p-2 hover:bg-gray-100 rounded-full transition-colors">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+
+            <div class="space-y-5">
+                <!-- WC Name Display -->
+                <div class="text-center">
+                    <h3 id="review-wc-name" class="text-lg font-semibold text-gray-800"></h3>
+                </div>
+
+                <!-- Star Rating -->
+                <div>
+                    <label class="text-sm font-medium text-gray-700 mb-2 block">Puanınız</label>
+                    <div class="star-rating justify-center" id="star-rating">
+                        <span class="star" data-rating="1">★</span>
+                        <span class="star" data-rating="2">★</span>
+                        <span class="star" data-rating="3">★</span>
+                        <span class="star" data-rating="4">★</span>
+                        <span class="star" data-rating="5">★</span>
+                    </div>
+                </div>
+
+                <!-- Comment -->
+                <div>
+                    <label class="text-sm font-medium text-gray-700 mb-1 block">Yorumunuz</label>
+                    <textarea id="review-comment" rows="4" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none resize-none" placeholder="Deneyiminizi paylaşın..."></textarea>
+                </div>
+
+                <!-- Filters -->
+                <div class="space-y-3">
+                    <label class="text-sm font-medium text-gray-700 mb-2 block">Özellikler</label>
+                    
+                    <!-- Accessible -->
+                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <span class="text-sm font-medium text-gray-700">Engelli İçin Uygun</span>
+                        <div class="flex gap-2">
+                            <button class="filter-btn px-4 py-1 rounded-md border-2 border-gray-300 text-gray-700 hover:border-green-500 hover:bg-green-50 transition-colors text-sm font-medium" data-filter="accessible" data-value="yes">Evet</button>
+                            <button class="filter-btn px-4 py-1 rounded-md border-2 border-gray-300 text-gray-700 hover:border-red-500 hover:bg-red-50 transition-colors text-sm font-medium" data-filter="accessible" data-value="no">Hayır</button>
+                        </div>
+                    </div>
+
+                    <!-- Clean -->
+                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <span class="text-sm font-medium text-gray-700">Temiz ve Kullanışlı</span>
+                        <div class="flex gap-2">
+                            <button class="filter-btn px-4 py-1 rounded-md border-2 border-gray-300 text-gray-700 hover:border-green-500 hover:bg-green-50 transition-colors text-sm font-medium" data-filter="clean" data-value="yes">Evet</button>
+                            <button class="filter-btn px-4 py-1 rounded-md border-2 border-gray-300 text-gray-700 hover:border-red-500 hover:bg-red-50 transition-colors text-sm font-medium" data-filter="clean" data-value="no">Hayır</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Submit Button -->
+                <button id="submit-review-btn" class="w-full bg-green-500 text-white py-3 rounded-lg font-semibold hover:bg-green-600 transition-colors">
+                    Yorumu Gönder
+                </button>
+
+                <!-- Reviews List -->
+                <div id="reviews-list" class="mt-6 space-y-3 pt-4 border-t">
+                    <h4 class="font-semibold text-gray-800 mb-3">Önceki Yorumlar</h4>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Route Modal -->
+    <div id="route-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 modal-overlay">
+        <div class="bg-white rounded-2xl w-full max-w-md p-6 modal-content">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-2xl font-bold text-gray-800">Yol Tarifi</h2>
+                <button id="close-route-modal" class="p-2 hover:bg-gray-100 rounded-full transition-colors">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+
+            <div class="space-y-4">
+                <!-- Destination -->
+                <div class="text-center mb-4">
+                    <h3 id="route-destination-name" class="text-lg font-semibold text-gray-800 mb-2"></h3>
+                    <p id="route-destination-distance" class="text-sm text-gray-600"></p>
+                </div>
+
+                <!-- Route Type Buttons -->
+                <div class="grid grid-cols-2 gap-3">
+                    <button id="route-driving-btn" class="flex flex-col items-center gap-2 p-4 border-2 border-green-500 bg-green-50 rounded-xl hover:bg-green-100 transition-colors">
+                        <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                        </svg>
+                        <span class="font-semibold text-gray-800">Araba ile</span>
+                        <span id="driving-time" class="text-xs text-gray-600">~</span>
+                    </button>
+
+                    <button id="route-walking-btn" class="flex flex-col items-center gap-2 p-4 border-2 border-gray-300 rounded-xl hover:bg-gray-50 transition-colors">
+                        <svg class="w-8 h-8 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                        </svg>
+                        <span class="font-semibold text-gray-800">Yaya olarak</span>
+                        <span id="walking-time" class="text-xs text-gray-600">~</span>
+                    </button>
+                </div>
+
+                <!-- Start Navigation Button -->
+                <button id="start-navigation-btn" class="w-full bg-green-500 text-white py-3 rounded-lg font-semibold hover:bg-green-600 transition-colors">
+                    Yol Tarifini Başlat
+                </button>
+
+                <!-- Clear Route Button -->
+                <button id="clear-route-btn" class="w-full bg-gray-200 text-gray-700 py-2 rounded-lg font-medium hover:bg-gray-300 transition-colors text-sm">
+                    Yol Tarifini Temizle
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit WC Modal -->
+    <div id="edit-wc-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 modal-overlay">
+        <div class="bg-white rounded-2xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto modal-content">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-2xl font-bold text-gray-800">WC Düzenle</h2>
+                <button id="close-edit-wc-modal" class="p-2 hover:bg-gray-100 rounded-full transition-colors">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+
+            <div class="space-y-4">
+                <!-- WC Name -->
+                <div>
+                    <label class="text-sm font-medium text-gray-700 mb-1 block">Tesis Adı</label>
+                    <input type="text" id="edit-wc-name-input" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none">
+                </div>
+
+                <!-- Location Input -->
+                <div>
+                    <label class="text-sm font-medium text-gray-700 mb-1 block">Konum</label>
+                    <div class="flex gap-2">
+                        <input type="text" id="edit-wc-lat-input" class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none" placeholder="Enlem">
+                        <input type="text" id="edit-wc-lng-input" class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none" placeholder="Boylam">
+                    </div>
+                </div>
+
+                <!-- Description -->
+                <div>
+                    <label class="text-sm font-medium text-gray-700 mb-1 block">Açıklama</label>
+                    <textarea id="edit-wc-description-input" rows="3" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none resize-none"></textarea>
+                </div>
+
+                <button id="update-wc-btn" class="w-full bg-green-500 text-white py-3 rounded-lg font-semibold hover:bg-green-600 transition-colors">
+                    Değişiklikleri Kaydet
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Storage Manager
+        const Storage = {
+            get: (key) => {
+                try {
+                    return JSON.parse(localStorage.getItem(key));
+                } catch {
+                    return null;
+                }
+            },
+            set: (key, value) => {
+                localStorage.setItem(key, JSON.stringify(value));
+            },
+            remove: (key) => {
+                localStorage.removeItem(key);
+            },
+            list: (prefix) => {
+                return Object.keys(localStorage).filter(k => k.startsWith(prefix));
+            }
+        };
+
+        // Current User
+        let currentUser = Storage.get('current_user');
+
+        // Initialize admin account if not exists
+        function initializeAdminAccount() {
+            const adminEmail = 'admin@admin.com';
+            const existingAdmin = Storage.get(`user:${adminEmail}`);
+            
+            if (!existingAdmin) {
+                const adminUser = {
+                    id: 1,
+                    firstName: 'Admin',
+                    lastName: 'Yönetici',
+                    email: adminEmail,
+                    phone: '05551234567',
+                    password: 'admin123',
+                    profileImage: null
+                };
+                Storage.set(`user:${adminEmail}`, adminUser);
+            }
+        }
+
+        // Initialize admin on page load
+        initializeAdminAccount();
+
+        // Auto-sync data from storage (simulates real-time updates)
+        function syncDataFromStorage() {
+            // This function can be called periodically to refresh data
+            // Simulating real-time updates from a backend/Google Play
+            loadWCs();
+        }
+
+        // Refresh data every 30 seconds
+        setInterval(() => {
+            if (map) {
+                syncDataFromStorage();
+            }
+        }, 30000);
+
+        // Check if user is admin
+        function isAdmin() {
+            return currentUser && currentUser.email === 'admin@admin.com';
+        }
+
+        // Check if user can edit/delete WC
+        function canEditWC(wc) {
+            if (!currentUser) return false;
+            return isAdmin() || wc.addedBy === currentUser.id;
+        }
+
+        // Check if user can edit/delete review
+        function canEditReview(review) {
+            if (!currentUser) return false;
+            return isAdmin() || review.userId === currentUser.id;
+        }
+
+        // Toast Notification
+        function showToast(message, type = 'info') {
+            const toast = document.createElement('div');
+            toast.className = `toast px-6 py-3 rounded-lg shadow-lg text-white font-medium ${
+                type === 'success' ? 'bg-green-500' :
+                type === 'error' ? 'bg-red-500' :
+                type === 'warning' ? 'bg-yellow-500' :
+                'bg-green-500'
+            }`;
+            toast.textContent = message;
+            
+            document.getElementById('toast-container').appendChild(toast);
+            
+            setTimeout(() => toast.remove(), 3000);
+        }
+
+        // Auth Functions
+        function switchToLogin() {
+            document.getElementById('login-tab').className = 'flex-1 py-2 rounded-lg font-semibold transition-all bg-green-500 text-white';
+            document.getElementById('register-tab').className = 'flex-1 py-2 rounded-lg font-semibold transition-all bg-gray-100 text-gray-600';
+            document.getElementById('login-form').classList.remove('hidden');
+            document.getElementById('register-form').classList.add('hidden');
+        }
+
+        function switchToRegister() {
+            document.getElementById('login-tab').className = 'flex-1 py-2 rounded-lg font-semibold transition-all bg-gray-100 text-gray-600';
+            document.getElementById('register-tab').className = 'flex-1 py-2 rounded-lg font-semibold transition-all bg-green-500 text-white';
+            document.getElementById('login-form').classList.add('hidden');
+            document.getElementById('register-form').classList.remove('hidden');
+        }
+
+        function login() {
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+
+            if (!email || !password) {
+                showToast('Lütfen tüm alanları doldurun', 'warning');
+                return;
+            }
+
+            const user = Storage.get(`user:${email}`);
+
+            if (!user || user.password !== password) {
+                showToast('E-posta veya şifre hatalı', 'error');
+                return;
+            }
+
+            currentUser = user;
+            Storage.set('current_user', user);
+            showMapScreen();
+            showToast('Hoş geldiniz!', 'success');
+        }
+
+        function register() {
+            const firstName = document.getElementById('register-firstname').value;
+            const lastName = document.getElementById('register-lastname').value;
+            const email = document.getElementById('register-email').value;
+            const phone = document.getElementById('register-phone').value;
+            const password = document.getElementById('register-password').value;
+            const confirm = document.getElementById('register-confirm').value;
+
+            if (!firstName || !lastName || !email || !phone || !password || !confirm) {
+                showToast('Lütfen tüm alanları doldurun', 'warning');
+                return;
+            }
+
+            if (password !== confirm) {
+                showToast('Şifreler eşleşmiyor', 'error');
+                return;
+            }
+
+            if (Storage.get(`user:${email}`)) {
+                showToast('Bu e-posta zaten kayıtlı', 'error');
+                return;
+            }
+
+            const user = {
+                id: Date.now(),
+                firstName,
+                lastName,
+                email,
+                phone,
+                password,
+                profileImage: null
+            };
+
+            Storage.set(`user:${email}`, user);
+            currentUser = user;
+            Storage.set('current_user', user);
+
+            showMapScreen();
+            showToast('Kayıt başarılı! Hoş geldiniz!', 'success');
+        }
+
+        function logout() {
+            // Stop location tracking
+            stopLocationTracking();
+            
+            Storage.remove('current_user');
+            currentUser = null;
+            document.getElementById('map-screen').classList.add('hidden');
+            document.getElementById('auth-screen').classList.remove('hidden');
+            showToast('Çıkış yapıldı', 'info');
+        }
+
+        function showMapScreen() {
+            document.getElementById('auth-screen').classList.add('hidden');
+            document.getElementById('map-screen').classList.remove('hidden');
+            updateUserDisplay();
+            setTimeout(initMap, 100);
+        }
+
+        function updateUserDisplay() {
+            const fullName = `${currentUser.firstName} ${currentUser.lastName}`;
+            const headerName = document.getElementById('header-user-name');
+            headerName.textContent = fullName;
+            
+            // Add admin badge if user is admin
+            if (isAdmin()) {
+                headerName.innerHTML = `${fullName} <span class="ml-1 px-2 py-0.5 bg-yellow-400 text-yellow-900 text-xs font-bold rounded">ADMIN</span>`;
+            }
+            
+            const initials = `${currentUser.firstName[0]}${currentUser.lastName[0]}`.toUpperCase();
+            
+            if (currentUser.profileImage) {
+                document.getElementById('header-profile-image').innerHTML = `<img src="${currentUser.profileImage}" class="w-full h-full object-cover rounded-full">`;
+                document.getElementById('profile-image-preview').innerHTML = `<img src="${currentUser.profileImage}" class="w-full h-full object-cover rounded-full">`;
+            } else {
+                document.getElementById('header-profile-image').textContent = initials;
+                document.getElementById('profile-image-preview').textContent = initials;
+            }
+        }
+
+        // Profile Modal
+        document.getElementById('profile-header').addEventListener('click', () => {
+            document.getElementById('profile-modal').classList.remove('hidden');
+            document.getElementById('edit-firstname').value = currentUser.firstName;
+            document.getElementById('edit-lastname').value = currentUser.lastName;
+            document.getElementById('edit-email').value = currentUser.email;
+            document.getElementById('edit-phone').value = currentUser.phone;
+        });
+
+        document.getElementById('close-profile-modal').addEventListener('click', () => {
+            document.getElementById('profile-modal').classList.add('hidden');
+        });
+
+        document.getElementById('save-profile-btn').addEventListener('click', () => {
+            const firstName = document.getElementById('edit-firstname').value;
+            const lastName = document.getElementById('edit-lastname').value;
+            const phone = document.getElementById('edit-phone').value;
+            
+            if (!firstName || !lastName || !phone) {
+                showToast('Lütfen tüm alanları doldurun', 'warning');
+                return;
+            }
+            
+            currentUser.firstName = firstName;
+            currentUser.lastName = lastName;
+            currentUser.phone = phone;
+            
+            Storage.set(`user:${currentUser.email}`, currentUser);
+            Storage.set('current_user', currentUser);
+            
+            updateUserDisplay();
+            
+            showToast('Profil güncellendi!', 'success');
+            document.getElementById('profile-modal').classList.add('hidden');
+        });
+
+        document.getElementById('profile-image-input').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                currentUser.profileImage = event.target.result;
+                Storage.set(`user:${currentUser.email}`, currentUser);
+                Storage.set('current_user', currentUser);
+                updateUserDisplay();
+                showToast('Profil fotoğrafı güncellendi!', 'success');
+            };
+            reader.readAsDataURL(file);
+        });
+
+        // Map
+        let map;
+        let markers = [];
+        let wcData = [];
+        let currentRoute = null;
+        let currentRouteControl = null;
+        let selectedRouteType = 'driving';
+        let currentRouteWC = null;
+        let userLocation = { lat: 41.0082, lng: 28.9784 }; // Default Istanbul
+        let userMarker = null;
+        let watchId = null;
+        let isTrackingLocation = false;
+
+        function initMap() {
+            if (map) return;
+
+            map = L.map('map').setView([userLocation.lat, userLocation.lng], 13);
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap',
+                maxZoom: 19
+            }).addTo(map);
+
+            // Create user location marker
+            updateUserMarker();
+
+            loadWCs();
+            
+            // Try to get real location
+            requestUserLocation();
+        }
+
+        function updateUserMarker() {
+            // Remove old marker if exists
+            if (userMarker) {
+                map.removeLayer(userMarker);
+            }
+
+            // User location marker with pulse effect
+            const pulseClass = isTrackingLocation ? 'user-marker-pulse' : '';
+            const userIcon = L.divIcon({
+                className: 'custom-marker',
+                html: `<div class="${pulseClass}" style="background: #10b981; width: 20px; height: 20px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.3);"></div>`,
+                iconSize: [20, 20],
+                iconAnchor: [10, 10]
+            });
+
+            userMarker = L.marker([userLocation.lat, userLocation.lng], { icon: userIcon })
+                .addTo(map)
+                .bindPopup('📍 Konumunuz (Canlı)');
+        }
+
+        function requestUserLocation() {
+            if (!navigator.geolocation) {
+                showToast('Tarayıcınız konum servislerini desteklemiyor', 'error');
+                return;
+            }
+
+            showToast('Konum izni isteniyor...', 'info');
+
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    // Success - update location
+                    userLocation.lat = position.coords.latitude;
+                    userLocation.lng = position.coords.longitude;
+                    
+                    // Update map and marker
+                    if (map) {
+                        map.setView([userLocation.lat, userLocation.lng], 15);
+                        updateUserMarker();
+                        loadWCs(); // Reload to update distances
+                    }
+                    
+                    showToast('Konumunuz alındı! 📍', 'success');
+                    
+                    // Start watching position
+                    startLocationTracking();
+                },
+                (error) => {
+                    // Error handling
+                    let errorMessage = 'Konum alınamadı';
+                    switch(error.code) {
+                        case error.PERMISSION_DENIED:
+                            errorMessage = 'Konum izni reddedildi. Lütfen tarayıcı ayarlarından konum iznini açın.';
+                            break;
+                        case error.POSITION_UNAVAILABLE:
+                            errorMessage = 'Konum bilgisi kullanılamıyor';
+                            break;
+                        case error.TIMEOUT:
+                            errorMessage = 'Konum alma zaman aşımına uğradı';
+                            break;
+                    }
+                    showToast(errorMessage, 'error');
+                    console.error('Geolocation error:', error);
+                },
+                {
+                    enableHighAccuracy: true,
+                    timeout: 10000,
+                    maximumAge: 0
+                }
+            );
+        }
+
+        function startLocationTracking() {
+            if (isTrackingLocation) return;
+
+            watchId = navigator.geolocation.watchPosition(
+                (position) => {
+                    // Update location
+                    userLocation.lat = position.coords.latitude;
+                    userLocation.lng = position.coords.longitude;
+                    
+                    // Update marker position and appearance
+                    if (map) {
+                        if (userMarker) {
+                            userMarker.setLatLng([userLocation.lat, userLocation.lng]);
+                        } else {
+                            updateUserMarker();
+                        }
+                    }
+                },
+                (error) => {
+                    console.error('Location tracking error:', error);
+                },
+                {
+                    enableHighAccuracy: true,
+                    timeout: 5000,
+                    maximumAge: 0
+                }
+            );
+            
+            isTrackingLocation = true;
+            
+            // Update marker appearance with pulse
+            updateUserMarker();
+            
+            // Add visual indicator to button
+            const locationBtn = document.querySelector('#location-btn svg');
+            const locationBtnText = document.getElementById('location-btn-text');
+            if (locationBtn) {
+                locationBtn.classList.add('location-tracking');
+            }
+            if (locationBtnText) {
+                locationBtnText.textContent = 'İzleniyor';
+                locationBtnText.classList.add('text-green-600', 'font-bold');
+            }
+        }
+
+        function stopLocationTracking() {
+            if (watchId !== null) {
+                navigator.geolocation.clearWatch(watchId);
+                watchId = null;
+                isTrackingLocation = false;
+                
+                // Update marker appearance without pulse
+                if (map && userMarker) {
+                    updateUserMarker();
+                }
+                
+                // Remove visual indicator from button
+                const locationBtn = document.querySelector('#location-btn svg');
+                const locationBtnText = document.getElementById('location-btn-text');
+                if (locationBtn) {
+                    locationBtn.classList.remove('location-tracking');
+                }
+                if (locationBtnText) {
+                    locationBtnText.textContent = 'Konumum';
+                    locationBtnText.classList.remove('text-green-600', 'font-bold');
+                }
+            }
+        }
+
+        function loadWCs() {
+            // Mock WC Data
+            let mockWCs = [
+                { id: 1, name: 'Sultanahmet Camii WC', lat: 41.0055, lng: 28.9769, type: 'mosque', addedBy: 0 },
+                { id: 2, name: 'Ayasofya Umumi Tuvalet', lat: 41.0086, lng: 28.9802, type: 'public', addedBy: 0 },
+                { id: 3, name: 'Topkapı Cafe & WC', lat: 41.0115, lng: 28.9833, type: 'cafe', addedBy: 0 },
+                { id: 4, name: 'Sirkeci Restaurant Tuvalet', lat: 41.0162, lng: 28.9761, type: 'restaurant', addedBy: 0 },
+                { id: 5, name: 'Taksim Umumi WC', lat: 41.0370, lng: 28.9857, type: 'public', addedBy: 0 },
+                { id: 6, name: 'Galata Bar & Restoran WC', lat: 41.0261, lng: 28.9742, type: 'bar', addedBy: 0 },
+                { id: 7, name: 'Beşiktaş Dinlenme Tesisi', lat: 41.0422, lng: 29.0078, type: 'rest_area', addedBy: 0 },
+                { id: 8, name: 'Ortaköy Camii Tuvaleti', lat: 41.0553, lng: 29.0274, type: 'mosque', addedBy: 0 },
+                { id: 9, name: 'Kadıköy İskele WC', lat: 40.9903, lng: 29.0253, type: 'public', addedBy: 0 },
+                { id: 10, name: 'Üsküdar Cafe Tuvalet', lat: 41.0226, lng: 29.0111, type: 'cafe', addedBy: 0 }
+            ];
+
+            // Apply modifications to system WCs
+            const modifiedWCs = Storage.get('modified_wcs') || {};
+            mockWCs = mockWCs.map(wc => {
+                if (modifiedWCs[wc.id]) {
+                    return { ...wc, ...modifiedWCs[wc.id] };
+                }
+                return wc;
+            });
+
+            // Load custom WCs
+            const customWCs = Storage.list('custom_wc_');
+            customWCs.forEach(key => {
+                const wc = Storage.get(key);
+                if (wc) mockWCs.push(wc);
+            });
+
+            // Filter out deleted WCs
+            const deletedWCs = Storage.get('deleted_wcs') || [];
+            const filteredWCs = mockWCs.filter(wc => !deletedWCs.includes(wc.id));
+
+            wcData = filteredWCs;
+
+            // Add markers
+            markers.forEach(m => m.remove());
+            markers = [];
+
+            filteredWCs.forEach(wc => {
+                const distance = calculateDistance(userLocation.lat, userLocation.lng, wc.lat, wc.lng);
+                
+                const icon = L.divIcon({
+                    className: 'custom-marker',
+                    html: `<div class="flex items-center gap-1 bg-green-500 px-3 py-2 rounded-full shadow-lg cursor-pointer hover:bg-green-600 transition-colors" style="white-space: nowrap;">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
+                            <rect x="3" y="11" width="18" height="11" rx="2"/>
+                            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                        </svg>
+                        <span class="text-white text-sm font-semibold">${wc.name}</span>
+                    </div>`,
+                    iconSize: [200, 40],
+                    iconAnchor: [100, 20]
+                });
+
+                const marker = L.marker([wc.lat, wc.lng], { icon })
+                    .addTo(map);
+
+                // Create popup content with buttons
+                const canEdit = canEditWC(wc);
+                const editBtn = canEdit ? `<button onclick="openEditWCModal(${wc.id})" class="w-full px-3 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-colors text-sm font-medium mt-2">✏️ WC'yi Düzenle</button>` : '';
+                const deleteBtn = canEdit ? `<button onclick="deleteWC(${wc.id})" class="w-full px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm font-medium mt-2">🗑️ WC'yi Sil</button>` : '';
+                
+                const popupContent = `
+                    <div class="p-2" style="min-width: 200px;">
+                        <h3 class="font-bold text-base mb-2">${wc.name}</h3>
+                        <p class="text-green-600 text-sm font-semibold mb-3">📍 ${distance.toFixed(2)} km uzaklıkta</p>
+                        <button onclick="openRouteModal(${wc.id}, ${wc.lat}, ${wc.lng}, '${wc.name.replace(/'/g, "\\'")}', ${distance})" class="w-full px-3 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-sm font-medium mb-2">🗺️ Yol Tarifi Al</button>
+                        <button onclick="openReviewModalById(${wc.id})" class="w-full px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium">⭐ Yorum Yap</button>
+                        ${editBtn}
+                        ${deleteBtn}
+                    </div>
+                `;
+
+                marker.bindPopup(popupContent);
+
+                markers.push(marker);
+            });
+        }
+
+        function calculateDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371;
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                      Math.sin(dLon/2) * Math.sin(dLon/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            return R * c;
+        }
+
+        // Delete WC function
+        function deleteWC(wcId) {
+            if (!confirm('Bu WC\'yi silmek istediğinizden emin misiniz?')) {
+                return;
+            }
+
+            // Find WC
+            const wc = wcData.find(w => w.id === wcId);
+            if (!wc) return;
+
+            // Check permission
+            if (!canEditWC(wc)) {
+                showToast('Bu WC\'yi silme yetkiniz yok', 'error');
+                return;
+            }
+
+            // For custom WCs, delete from storage
+            if (wc.type === 'custom') {
+                Storage.remove(`custom_wc_${wcId}`);
+            } else {
+                // For system WCs, add to deleted list (only admin can delete system WCs)
+                if (isAdmin()) {
+                    let deletedWCs = Storage.get('deleted_wcs') || [];
+                    deletedWCs.push(wcId);
+                    Storage.set('deleted_wcs', deletedWCs);
+                }
+            }
+
+            // Delete all reviews for this WC
+            const reviewKeys = Storage.list('review_');
+            reviewKeys.forEach(key => {
+                const review = Storage.get(key);
+                if (review && review.wcId === wcId) {
+                    Storage.remove(key);
+                }
+            });
+
+            showToast('WC başarıyla silindi!', 'success');
+            loadWCs();
+            
+            // Close any open popups
+            map.closePopup();
+        }
+
+        // Open route modal
+        function openRouteModal(wcId, lat, lng, name, distance) {
+            currentRouteWC = { id: wcId, lat, lng, name, distance };
+            document.getElementById('route-modal').classList.remove('hidden');
+            document.getElementById('route-destination-name').textContent = name;
+            document.getElementById('route-destination-distance').textContent = `📍 ${distance.toFixed(2)} km uzaklıkta`;
+            
+            // Calculate estimated times
+            const drivingTime = Math.round((distance / 40) * 60); // 40 km/h avg
+            const walkingTime = Math.round((distance / 5) * 60); // 5 km/h avg
+            
+            document.getElementById('driving-time').textContent = `~${drivingTime} dk`;
+            document.getElementById('walking-time').textContent = `~${walkingTime} dk`;
+        }
+
+        // Open review modal by ID
+        function openReviewModalById(wcId) {
+            const wc = wcData.find(w => w.id === wcId);
+            if (wc) {
+                openReviewModal(wc);
+            }
+        }
+
+        // Route type selection
+        document.getElementById('route-driving-btn').addEventListener('click', () => {
+            selectedRouteType = 'driving';
+            document.getElementById('route-driving-btn').className = 'flex flex-col items-center gap-2 p-4 border-2 border-green-500 bg-green-50 rounded-xl hover:bg-green-100 transition-colors';
+            document.getElementById('route-walking-btn').className = 'flex flex-col items-center gap-2 p-4 border-2 border-gray-300 rounded-xl hover:bg-gray-50 transition-colors';
+        });
+
+        document.getElementById('route-walking-btn').addEventListener('click', () => {
+            selectedRouteType = 'walking';
+            document.getElementById('route-walking-btn').className = 'flex flex-col items-center gap-2 p-4 border-2 border-green-500 bg-green-50 rounded-xl hover:bg-green-100 transition-colors';
+            document.getElementById('route-driving-btn').className = 'flex flex-col items-center gap-2 p-4 border-2 border-gray-300 rounded-xl hover:bg-gray-50 transition-colors';
+        });
+
+        // Start navigation
+        document.getElementById('start-navigation-btn').addEventListener('click', () => {
+            if (!currentRouteWC) return;
+
+            // Clear previous route
+            if (currentRouteControl) {
+                map.removeControl(currentRouteControl);
+            }
+
+            // Create routing control
+            currentRouteControl = L.Routing.control({
+                waypoints: [
+                    L.latLng(userLocation.lat, userLocation.lng),
+                    L.latLng(currentRouteWC.lat, currentRouteWC.lng)
+                ],
+                router: L.Routing.osrmv1({
+                    serviceUrl: 'https://router.project-osrm.org/route/v1',
+                    profile: selectedRouteType === 'driving' ? 'car' : 'foot'
+                }),
+                routeWhileDragging: false,
+                showAlternatives: false,
+                lineOptions: {
+                    styles: [{color: '#10b981', opacity: 0.8, weight: 6}]
+                },
+                createMarker: function() { return null; }, // Don't create default markers
+                fitSelectedRoutes: true,
+                show: false // Hide the directions panel
+            }).addTo(map);
+
+            // Close modal
+            document.getElementById('route-modal').classList.add('hidden');
+            
+            showToast(`${selectedRouteType === 'driving' ? 'Araba' : 'Yaya'} yol tarifi gösteriliyor`, 'success');
+        });
+
+        // Clear route
+        document.getElementById('clear-route-btn').addEventListener('click', () => {
+            if (currentRouteControl) {
+                map.removeControl(currentRouteControl);
+                currentRouteControl = null;
+                showToast('Yol tarifi temizlendi', 'info');
+            }
+        });
+
+        // Close route modal
+        document.getElementById('close-route-modal').addEventListener('click', () => {
+            document.getElementById('route-modal').classList.add('hidden');
+        });
+
+        // Edit WC Modal
+        let currentEditWC = null;
+
+        function openEditWCModal(wcId) {
+            const wc = wcData.find(w => w.id === wcId);
+            if (!wc) return;
+
+            if (!canEditWC(wc)) {
+                showToast('Bu WC\'yi düzenleme yetkiniz yok', 'error');
+                return;
+            }
+
+            currentEditWC = wc;
+            document.getElementById('edit-wc-modal').classList.remove('hidden');
+            document.getElementById('edit-wc-name-input').value = wc.name;
+            document.getElementById('edit-wc-lat-input').value = wc.lat;
+            document.getElementById('edit-wc-lng-input').value = wc.lng;
+            document.getElementById('edit-wc-description-input').value = wc.description || '';
+            
+            map.closePopup();
+        }
+
+        document.getElementById('close-edit-wc-modal').addEventListener('click', () => {
+            document.getElementById('edit-wc-modal').classList.add('hidden');
+            currentEditWC = null;
+        });
+
+        document.getElementById('update-wc-btn').addEventListener('click', () => {
+            if (!currentEditWC) return;
+
+            const name = document.getElementById('edit-wc-name-input').value;
+            const lat = parseFloat(document.getElementById('edit-wc-lat-input').value);
+            const lng = parseFloat(document.getElementById('edit-wc-lng-input').value);
+            const description = document.getElementById('edit-wc-description-input').value;
+
+            if (!name || !lat || !lng) {
+                showToast('Lütfen tüm gerekli alanları doldurun', 'warning');
+                return;
+            }
+
+            // Update WC
+            currentEditWC.name = name;
+            currentEditWC.lat = lat;
+            currentEditWC.lng = lng;
+            currentEditWC.description = description;
+
+            // Save to storage
+            if (currentEditWC.type === 'custom') {
+                Storage.set(`custom_wc_${currentEditWC.id}`, currentEditWC);
+            } else {
+                // For system WCs, save as modified
+                let modifiedWCs = Storage.get('modified_wcs') || {};
+                modifiedWCs[currentEditWC.id] = currentEditWC;
+                Storage.set('modified_wcs', modifiedWCs);
+            }
+
+            showToast('WC başarıyla güncellendi!', 'success');
+            document.getElementById('edit-wc-modal').classList.add('hidden');
+            currentEditWC = null;
+            
+            loadWCs();
+        });
+
+        // Add WC Modal
+        let selectedPhotos = [];
+
+        document.getElementById('add-wc-btn').addEventListener('click', () => {
+            document.getElementById('add-wc-modal').classList.remove('hidden');
+            selectedPhotos = [];
+            document.getElementById('photo-preview').innerHTML = '';
+        });
+
+        document.getElementById('close-add-wc-modal').addEventListener('click', () => {
+            document.getElementById('add-wc-modal').classList.add('hidden');
+        });
+
+        document.getElementById('photo-upload-area').addEventListener('click', () => {
+            document.getElementById('wc-photo-input').click();
+        });
+
+        document.getElementById('wc-photo-input').addEventListener('change', (e) => {
+            const files = Array.from(e.target.files);
+            const previewContainer = document.getElementById('photo-preview');
+            
+            files.forEach(file => {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    selectedPhotos.push(event.target.result);
+                    const img = document.createElement('img');
+                    img.src = event.target.result;
+                    img.className = 'w-full h-20 object-cover rounded-lg';
+                    previewContainer.appendChild(img);
+                };
+                reader.readAsDataURL(file);
+            });
+        });
+
+        document.getElementById('use-current-location-btn').addEventListener('click', () => {
+            if (!navigator.geolocation) {
+                showToast('Tarayıcınız konum servislerini desteklemiyor', 'error');
+                return;
+            }
+
+            showToast('Konum alınıyor...', 'info');
+
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    document.getElementById('wc-lat-input').value = position.coords.latitude.toFixed(6);
+                    document.getElementById('wc-lng-input').value = position.coords.longitude.toFixed(6);
+                    showToast('Mevcut konum kullanıldı 📍', 'success');
+                },
+                (error) => {
+                    let errorMessage = 'Konum alınamadı';
+                    switch(error.code) {
+                        case error.PERMISSION_DENIED:
+                            errorMessage = 'Konum izni reddedildi';
+                            break;
+                        case error.POSITION_UNAVAILABLE:
+                            errorMessage = 'Konum bilgisi kullanılamıyor';
+                            break;
+                        case error.TIMEOUT:
+                            errorMessage = 'Konum alma zaman aşımına uğradı';
+                            break;
+                    }
+                    showToast(errorMessage, 'error');
+                    
+                    // Fallback to last known location
+                    document.getElementById('wc-lat-input').value = userLocation.lat.toFixed(6);
+                    document.getElementById('wc-lng-input').value = userLocation.lng.toFixed(6);
+                },
+                {
+                    enableHighAccuracy: true,
+                    timeout: 10000,
+                    maximumAge: 0
+                }
+            );
+        });
+
+        document.getElementById('submit-wc-btn').addEventListener('click', () => {
+            const name = document.getElementById('wc-name-input').value;
+            const lat = parseFloat(document.getElementById('wc-lat-input').value);
+            const lng = parseFloat(document.getElementById('wc-lng-input').value);
+            const description = document.getElementById('wc-description-input').value;
+
+            if (!name || !lat || !lng) {
+                showToast('Lütfen tüm gerekli alanları doldurun', 'warning');
+                return;
+            }
+
+            const newWC = {
+                id: Date.now(),
+                name,
+                lat,
+                lng,
+                description,
+                photos: selectedPhotos,
+                type: 'custom',
+                addedBy: currentUser.id
+            };
+
+            Storage.set(`custom_wc_${newWC.id}`, newWC);
+            
+            showToast('WC başarıyla eklendi!', 'success');
+            document.getElementById('add-wc-modal').classList.add('hidden');
+            
+            // Clear form
+            document.getElementById('wc-name-input').value = '';
+            document.getElementById('wc-lat-input').value = '';
+            document.getElementById('wc-lng-input').value = '';
+            document.getElementById('wc-description-input').value = '';
+            selectedPhotos = [];
+            document.getElementById('photo-preview').innerHTML = '';
+            
+            loadWCs();
+        });
+
+        // Search Modal
+        document.getElementById('search-btn').addEventListener('click', () => {
+            document.getElementById('search-modal').classList.remove('hidden');
+            document.getElementById('search-input').value = '';
+            document.getElementById('search-results').innerHTML = '<div class="text-center text-gray-500 py-8">Aramak için yukarıdaki kutucuğa yazın...</div>';
+        });
+
+        document.getElementById('close-search-modal').addEventListener('click', () => {
+            document.getElementById('search-modal').classList.add('hidden');
+        });
+
+        document.getElementById('search-input').addEventListener('input', (e) => {
+            const query = e.target.value.toLowerCase().trim();
+            const resultsContainer = document.getElementById('search-results');
+
+            if (!query) {
+                resultsContainer.innerHTML = '<div class="text-center text-gray-500 py-8">Aramak için yukarıdaki kutucuğa yazın...</div>';
+                return;
+            }
+
+            const filtered = wcData.filter(wc => 
+                wc.name.toLowerCase().includes(query)
+            );
+
+            if (filtered.length === 0) {
+                resultsContainer.innerHTML = '<div class="text-center text-gray-500 py-8">Sonuç bulunamadı</div>';
+                return;
+            }
+
+            resultsContainer.innerHTML = filtered.map(wc => {
+                const distance = calculateDistance(userLocation.lat, userLocation.lng, wc.lat, wc.lng);
+                return `
+                    <div class="p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer" onclick="focusOnWC(${wc.lat}, ${wc.lng})">
+                        <div class="flex items-start justify-between">
+                            <div class="flex-1">
+                                <h4 class="font-semibold text-gray-800">${wc.name}</h4>
+                                <p class="text-sm text-green-600 font-medium mt-1">📍 ${distance.toFixed(2)} km uzaklıkta</p>
+                            </div>
+                            <svg class="w-5 h-5 text-green-500 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                                <rect x="3" y="11" width="18" height="11" rx="2"/>
+                                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                            </svg>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        });
+
+        function focusOnWC(lat, lng) {
+            if (map) {
+                map.setView([lat, lng], 17);
+                document.getElementById('search-modal').classList.add('hidden');
+                showToast('Konuma odaklandı', 'success');
+            }
+        }
+
+        // Review Modal
+        let currentReviewWC = null;
+        let selectedRating = 0;
+        let selectedFilters = {
+            accessible: null,
+            clean: null
+        };
+
+        function openReviewModal(wc) {
+            currentReviewWC = wc;
+            document.getElementById('review-modal').classList.remove('hidden');
+            document.getElementById('review-wc-name').textContent = wc.name;
+            
+            // Reset form
+            selectedRating = 0;
+            selectedFilters = { accessible: null, clean: null };
+            document.getElementById('review-comment').value = '';
+            document.querySelectorAll('.star').forEach(star => star.classList.remove('active'));
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.remove('bg-green-500', 'text-white', 'border-green-500', 'bg-red-500', 'border-red-500');
+            });
+
+            loadReviews(wc.id);
+        }
+
+        document.getElementById('close-review-modal').addEventListener('click', () => {
+            document.getElementById('review-modal').classList.add('hidden');
+        });
+
+        // Star Rating
+        document.querySelectorAll('.star').forEach(star => {
+            star.addEventListener('click', () => {
+                selectedRating = parseInt(star.dataset.rating);
+                document.querySelectorAll('.star').forEach((s, index) => {
+                    if (index < selectedRating) {
+                        s.classList.add('active');
+                    } else {
+                        s.classList.remove('active');
+                    }
+                });
+            });
+        });
+
+        // Filter Buttons
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const filter = btn.dataset.filter;
+                const value = btn.dataset.value;
+                
+                // Remove active state from siblings
+                document.querySelectorAll(`[data-filter="${filter}"]`).forEach(b => {
+                    b.classList.remove('bg-green-500', 'text-white', 'border-green-500', 'bg-red-500', 'border-red-500');
+                });
+
+                // Add active state
+                if (value === 'yes') {
+                    btn.classList.add('bg-green-500', 'text-white', 'border-green-500');
+                } else {
+                    btn.classList.add('bg-red-500', 'text-white', 'border-red-500');
+                }
+
+                selectedFilters[filter] = value;
+            });
+        });
+
+        // Submit Review
+        document.getElementById('submit-review-btn').addEventListener('click', () => {
+            if (selectedRating === 0) {
+                showToast('Lütfen bir puan verin', 'warning');
+                return;
+            }
+
+            const comment = document.getElementById('review-comment').value;
+
+            const review = {
+                id: Date.now(),
+                wcId: currentReviewWC.id,
+                userId: currentUser.id,
+                userName: `${currentUser.firstName} ${currentUser.lastName}`,
+                rating: selectedRating,
+                comment,
+                accessible: selectedFilters.accessible,
+                clean: selectedFilters.clean,
+                date: new Date().toLocaleDateString('tr-TR')
+            };
+
+            Storage.set(`review_${review.id}`, review);
+            
+            showToast('Yorum başarıyla eklendi!', 'success');
+            
+            // Reset and reload
+            selectedRating = 0;
+            selectedFilters = { accessible: null, clean: null };
+            document.getElementById('review-comment').value = '';
+            document.querySelectorAll('.star').forEach(star => star.classList.remove('active'));
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.remove('bg-green-500', 'text-white', 'border-green-500', 'bg-red-500', 'border-red-500');
+            });
+
+            loadReviews(currentReviewWC.id);
+        });
+
+        function loadReviews(wcId) {
+            const reviewsList = document.getElementById('reviews-list');
+            const allReviews = Storage.list('review_')
+                .map(key => {
+                    const review = Storage.get(key);
+                    if (review) {
+                        review.storageKey = key; // Store the key for deletion
+                    }
+                    return review;
+                })
+                .filter(r => r && r.wcId === wcId)
+                .sort((a, b) => b.id - a.id);
+
+            if (allReviews.length === 0) {
+                reviewsList.innerHTML = '<h4 class="font-semibold text-gray-800 mb-3">Önceki Yorumlar</h4><div class="text-center text-gray-500 py-4">Henüz yorum yapılmamış</div>';
+                return;
+            }
+
+            const reviewsHTML = allReviews.map(review => {
+                const canDelete = canEditReview(review);
+                const deleteBtn = canDelete ? `
+                    <button onclick="deleteReview('${review.storageKey}')" class="text-red-500 hover:text-red-700 text-xs font-medium">
+                        🗑️ Sil
+                    </button>
+                ` : '';
+
+                return `
+                <div class="p-4 bg-gray-50 rounded-lg">
+                    <div class="flex items-start justify-between mb-2">
+                        <div class="flex items-center gap-2">
+                            <div class="w-8 h-8 rounded-full bg-green-500 text-white flex items-center justify-center text-sm font-bold">
+                                ${review.userName.split(' ').map(n => n[0]).join('')}
+                            </div>
+                            <div>
+                                <div class="font-semibold text-sm">${review.userName}</div>
+                                <div class="text-xs text-gray-500">${review.date}</div>
+                            </div>
+                        </div>
+                        <div class="flex flex-col items-end gap-1">
+                            <div class="flex">
+                                ${'★'.repeat(review.rating)}<span class="text-gray-300">${'★'.repeat(5-review.rating)}</span>
+                            </div>
+                            ${deleteBtn}
+                        </div>
+                    </div>
+                    ${review.comment ? `<p class="text-sm text-gray-700 mb-2">${review.comment}</p>` : ''}
+                    <div class="flex gap-2 flex-wrap">
+                        ${review.accessible === 'yes' ? '<span class="text-xs px-2 py-1 bg-green-100 text-green-700 rounded">✓ Engelli Uygun</span>' : ''}
+                        ${review.accessible === 'no' ? '<span class="text-xs px-2 py-1 bg-red-100 text-red-700 rounded">✗ Engelli Uygun Değil</span>' : ''}
+                        ${review.clean === 'yes' ? '<span class="text-xs px-2 py-1 bg-green-100 text-green-700 rounded">✓ Temiz</span>' : ''}
+                        ${review.clean === 'no' ? '<span class="text-xs px-2 py-1 bg-red-100 text-red-700 rounded">✗ Temiz Değil</span>' : ''}
+                    </div>
+                </div>
+            `;
+            }).join('');
+
+            reviewsList.innerHTML = '<h4 class="font-semibold text-gray-800 mb-3">Önceki Yorumlar</h4>' + reviewsHTML;
+        }
+
+        // Delete review function
+        function deleteReview(storageKey) {
+            if (!confirm('Bu yorumu silmek istediğinizden emin misiniz?')) {
+                return;
+            }
+
+            const review = Storage.get(storageKey);
+            if (!review) return;
+
+            // Check permission
+            if (!canEditReview(review)) {
+                showToast('Bu yorumu silme yetkiniz yok', 'error');
+                return;
+            }
+
+            Storage.remove(storageKey);
+            showToast('Yorum başarıyla silindi!', 'success');
+            
+            // Reload reviews
+            if (currentReviewWC) {
+                loadReviews(currentReviewWC.id);
+            }
+        }
+
+        // Location Button
+        document.getElementById('location-btn').addEventListener('click', () => {
+            if (!map) return;
+            
+            // Request fresh location
+            if (!navigator.geolocation) {
+                showToast('Tarayıcınız konum servislerini desteklemiyor', 'error');
+                return;
+            }
+
+            showToast('Konum alınıyor...', 'info');
+
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    // Update location
+                    userLocation.lat = position.coords.latitude;
+                    userLocation.lng = position.coords.longitude;
+                    
+                    // Center map on user location
+                    map.setView([userLocation.lat, userLocation.lng], 16);
+                    
+                    // Update marker
+                    updateUserMarker();
+                    
+                    // Reload WCs to update distances
+                    loadWCs();
+                    
+                    showToast('Konumunuza odaklandı 📍', 'success');
+                    
+                    // Start tracking if not already tracking
+                    if (!isTrackingLocation) {
+                        startLocationTracking();
+                    }
+                },
+                (error) => {
+                    let errorMessage = 'Konum alınamadı';
+                    switch(error.code) {
+                        case error.PERMISSION_DENIED:
+                            errorMessage = 'Konum izni reddedildi. Lütfen tarayıcı ayarlarından konum iznini açın.';
+                            break;
+                        case error.POSITION_UNAVAILABLE:
+                            errorMessage = 'Konum bilgisi kullanılamıyor';
+                            break;
+                        case error.TIMEOUT:
+                            errorMessage = 'Konum alma zaman aşımına uğradı';
+                            break;
+                    }
+                    showToast(errorMessage, 'error');
+                    
+                    // Fallback to last known location
+                    map.setView([userLocation.lat, userLocation.lng], 15);
+                },
+                {
+                    enableHighAccuracy: true,
+                    timeout: 10000,
+                    maximumAge: 0
+                }
+            );
+        });
+
+        // Event Listeners
+        document.getElementById('login-tab').addEventListener('click', switchToLogin);
+        document.getElementById('register-tab').addEventListener('click', switchToRegister);
+        document.getElementById('login-btn').addEventListener('click', login);
+        document.getElementById('register-btn').addEventListener('click', register);
+        document.getElementById('logout-btn').addEventListener('click', logout);
+
+        // Enter key support
+        document.getElementById('login-password').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') login();
+        });
+
+        document.getElementById('register-confirm').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') register();
+        });
+
+        // Check if already logged in
+        if (currentUser) {
+            showMapScreen();
+        }
+    </script>
+</body>
+</html>
