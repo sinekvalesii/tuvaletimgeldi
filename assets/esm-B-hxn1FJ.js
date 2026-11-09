@@ -1,0 +1,2 @@
+const __vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=["./web-DUGrw-sc.js","./main-BtMcmE5A.js","./main-BIgbrxzI.css"])))=>i.map(i=>d[i]);
+import{o as e,r as t}from"./main-BtMcmE5A.js";var n;(function(e){e.Heavy=`HEAVY`,e.Medium=`MEDIUM`,e.Light=`LIGHT`})(n||(n={}));var r;(function(e){e.Success=`SUCCESS`,e.Warning=`WARNING`,e.Error=`ERROR`})(r||(r={}));var i=t(`Haptics`,{web:()=>e(()=>import(`./web-DUGrw-sc.js`).then(e=>new e.HapticsWeb),__vite__mapDeps([0,1,2]),import.meta.url)});export{i as Haptics,n as ImpactStyle,r as NotificationType};

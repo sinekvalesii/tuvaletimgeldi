@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#059669" />
+    <title>TuvaletimGeldi — En yakın tuvaleti bul</title>
+    <meta name="description" content="En yakın umumi tuvaleti saniyeler içinde bul. Ücretsiz, engelli erişimli ve bebek bakım üniteli tuvaletleri filtrele, yol tarifi al, yorum yap." />
+    <meta property="og:title" content="TuvaletimGeldi — En yakın tuvaleti bul" />
+    <meta property="og:description" content="En yakın umumi tuvaleti saniyeler içinde bul." />
+    <meta property="og:image" content="icons/og-image.png" />
+    <meta property="og:type" content="website" />
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <script type="module" crossorigin src="./assets/main-BtMcmE5A.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/main-BIgbrxzI.css">
+  <script id="vite-plugin-pwa:register-sw" src="./registerSW.js"></script></head>
+  <body>
+    <div id="map" role="application" aria-label="Harita"></div>
+
+    <!-- Üst arama -->
+    <header class="topbar">
+      <div class="searchbox">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" class="muted" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input id="search-input" type="search" enterkeyhint="search" autocomplete="off" data-i18n-placeholder="searchPlaceholder" aria-label="Ara" />
+        <button id="search-clear" class="icon-btn hidden" aria-label="Temizle">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+        <button id="avatar-btn" class="avatar guest" data-i18n-aria="profile">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>
+        </button>
+      </div>
+      <div id="search-results" class="search-results hidden"></div>
+      <div class="chips" id="filter-chips">
+        <button class="chip" data-filter="free" aria-pressed="false">💸 <span data-i18n="filterFree"></span></button>
+        <button class="chip" data-filter="accessible" aria-pressed="false">♿ <span data-i18n="filterAccessible"></span></button>
+        <button class="chip" data-filter="baby" aria-pressed="false">🍼 <span data-i18n="filterBaby"></span></button>
+      </div>
+    </header>
+
+    <!-- Harita üzerindeki butonlar -->
+    <div class="map-actions">
+      <button id="urgent-btn" class="urgent-btn">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></svg>
+        <span><span data-i18n="urgent"></span><small data-i18n="urgentHint"></small></span>
+      </button>
+      <div style="display: flex; flex-direction: column; gap: 12px; align-items: center">
+        <button id="locate-btn" class="fab" data-i18n-aria="myLocation">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
+        </button>
+        <button id="add-btn" class="fab primary" data-i18n-aria="addToilet">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Yakındakiler alt sayfası -->
+    <section id="nearby-sheet" class="sheet" aria-labelledby="nearby-title">
+      <div class="sheet-head" id="nearby-head">
+        <div class="sheet-handle"></div>
+        <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 8px">
+          <h2 id="nearby-title" style="margin: 4px 0; font-size: 18px; font-weight: 800" data-i18n="nearby"></h2>
+          <span id="nearby-count" class="muted" style="font-size: 13px"></span>
+        </div>
+      </div>
+      <div id="nearby-list" role="list"></div>
+    </section>
+
+    <!-- Konum seçme -->
+    <div id="pick-overlay" class="hidden">
+      <svg class="center-pin" width="44" height="56" viewBox="0 0 44 56" aria-hidden="true">
+        <path d="M22 0C10 0 0 9.6 0 21.5 0 37 22 56 22 56s22-19 22-34.5C44 9.6 34 0 22 0z" fill="#e11d48" />
+        <circle cx="22" cy="21" r="8" fill="#fff" />
+      </svg>
+      <div class="pick-bar">
+        <p style="margin: 0 0 12px; font-size: 14px" class="muted" data-i18n="pickOnMap"></p>
+        <div style="display: flex; gap: 10px">
+          <button id="pick-cancel" class="btn" style="flex: 1" data-i18n="cancel"></button>
+          <button id="pick-confirm" class="btn primary" style="flex: 2" data-i18n="confirmLocation"></button>
+        </div>
+      </div>
+    </div>
+
+    <div id="backdrop"></div>
+    <section id="modal-sheet" class="sheet" role="dialog" aria-modal="true">
+      <div class="sheet-handle"></div>
+      <div id="modal-body"></div>
+    </section>
+
+    <div id="dialog" class="hidden" role="alertdialog" aria-modal="true"></div>
+    <div id="toasts" aria-live="polite"></div>
+    <div id="offline-banner" class="hidden" data-i18n="offline"></div>
+    <div id="onboarding" class="hidden"></div>
+
+    <noscript>TuvaletimGeldi'yi kullanmak için JavaScript'i etkinleştirin.</noscript>
+  </body>
+</html>
