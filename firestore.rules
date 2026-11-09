@@ -1,0 +1,90 @@
+rules_version = '2';
+// TuvaletimGeldi Firestore güvenlik kuralları
+// Yönetici yapmak için: Firestore'da admins/{kullanıcıUID} belgesi oluşturun.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function isAdmin() { return signedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid)); }
+    function isStr(v, max) { return v is string && v.size() <= max; }
+    function triState(v) { return v == null || v == 'yes' || v == 'no'; }
+    function validType(v) { return v in ['public', 'cafe', 'mall', 'station', 'mosque', 'fuel', 'park', 'other']; }
+
+    function validToilet(d) {
+      return isStr(d.name, 80) && d.name.size() > 0
+        && validType(d.type)
+        && d.lat is number && d.lat >= -90 && d.lat <= 90
+        && d.lng is number && d.lng >= -180 && d.lng <= 180
+        && isStr(d.geohash, 12)
+        && triState(d.fee) && triState(d.wheelchair)
+        && d.baby is bool
+        && isStr(d.description, 500)
+        && isStr(d.photoUrl, 600);
+    }
+
+    match /admins/{uid} {
+      allow read: if signedIn() && request.auth.uid == uid;
+      allow write: if false; // sadece konsoldan
+    }
+
+    match /users/{uid} {
+      allow read: if signedIn() && request.auth.uid == uid;
+      allow create, update: if signedIn() && request.auth.uid == uid
+        && isStr(request.resource.data.displayName, 40);
+      allow delete: if signedIn() && request.auth.uid == uid;
+    }
+
+    match /toilets/{id} {
+      allow read: if true;
+      allow create: if signedIn()
+        && validToilet(request.resource.data)
+        && request.resource.data.addedBy == request.auth.uid
+        && isStr(request.resource.data.addedByName, 40)
+        && request.resource.data.createdAt == request.time;
+      allow update: if signedIn()
+        && (resource.data.addedBy == request.auth.uid || isAdmin())
+        && validToilet(request.resource.data)
+        && request.resource.data.createdAt == resource.data.createdAt
+        && (
+          // normal düzenleme: sahibi değişemez
+          request.resource.data.addedBy == resource.data.addedBy
+          // hesap silinirken anonimleştirme
+          || (request.resource.data.addedBy == 'deleted' && request.resource.data.addedByName == '')
+        );
+      allow delete: if signedIn() && (resource.data.addedBy == request.auth.uid || isAdmin());
+    }
+
+    // Yorumlar: places/{placeId}/reviews/{uid} — kullanıcı başına bir yorum
+    match /places/{placeId}/reviews/{uid} {
+      allow read: if true;
+      allow create, update: if signedIn() && request.auth.uid == uid
+        && request.resource.data.uid == uid
+        && request.resource.data.rating is int
+        && request.resource.data.rating >= 1 && request.resource.data.rating <= 5
+        && isStr(request.resource.data.comment, 500)
+        && isStr(request.resource.data.userName, 40)
+        && triState(request.resource.data.clean)
+        && request.resource.data.createdAt == request.time;
+      allow delete: if signedIn() && (request.auth.uid == uid || isAdmin());
+    }
+
+    // Hesap silmede kendi yorumlarını bulabilmek için koleksiyon grubu okuma
+    match /{path=**}/reviews/{uid} {
+      allow read: if true;
+    }
+
+    match /reports/{id} {
+      allow create: if request.resource.data.status == 'open'
+        && isStr(request.resource.data.placeId, 120)
+        && request.resource.data.reason in ['wrong', 'closed', 'spam', 'offensive']
+        && isStr(request.resource.data.label, 120)
+        && (request.resource.data.by == null || (signedIn() && request.resource.data.by == request.auth.uid));
+      allow read, update, delete: if isAdmin();
+    }
+
+    match /hidden/{placeId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+  }
+}

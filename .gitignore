@@ -1,0 +1,11 @@
+node_modules/
+dist/
+android/app/build/
+android/.gradle/
+android/build/
+*.keystore
+*.jks
+keystore.properties
+.firebase/
+CIKTILAR/
+.claude/

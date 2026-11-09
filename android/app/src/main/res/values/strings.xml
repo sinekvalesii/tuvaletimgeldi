@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">TuvaletimGeldi</string>
+    <string name="title_activity_main">TuvaletimGeldi</string>
+    <string name="package_name">com.tuvaletimgeldi.app</string>
+    <string name="custom_url_scheme">com.tuvaletimgeldi.app</string>
+</resources>
